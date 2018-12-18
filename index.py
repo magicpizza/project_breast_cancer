@@ -1,127 +1,147 @@
-import numpy as np
-import pandas as pd
-import scipy
+# _______________________________________________
+## Introduction
+# _______________________________________________
+# Creating a prognostic model from Wisconsin Breast Cancer Data 
+# by Victor Wan
+# Desc: Visualising Breast Cancer Wisconsin data and creating a predictive model based on nuclear features
 
+# Importing libraries
+
+print('Creating a prognostic model from Wisconsin Breast Cancer Data\n~by Victor Wan\nDesc: Visualising Breast Cancer Wisconsin data and creating a predictive model based on nuclear features')
+
+# numpy is used to manipulate arrays (used in this project for .column_stack())
+import numpy as np
+# panda for data analysis (used for reading in data and converting to DataFrame)
+import pandas as pd
+
+# libraries for plotting data
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import seaborn as sb
 
+# libraries for logistic regression
 import sklearn
 from sklearn import preprocessing
 from sklearn.preprocessing import scale
-
 from sklearn import datasets
 from sklearn.feature_selection import RFE
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-
-
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
-# setting graph styles
+# Setting graph styles
 # %matplotlib inline
 # rcParams['figure.figsize'] = 5, 4
+print('Setting graph styles...')
 sb.set_style('whitegrid')
 
-# locate and read data
+# Locate and read data
+print('Locating and reading data...')
 address='C:/Users/victo/Dropbox/Coding/Python/visual_studio_code/project_breast_cancer/breast_cancer_data.csv'
 df=pd.read_csv(address)
 # column_names=["id","diagnosis","radius_mean","texture_mean","perimeter_mean","area_mean","smoothness_mean","compactness_mean","concavity_mean","concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst"]
 # df.columns=column_names
 # used https://github.com/patrickmlong/Breast-Cancer-Wisconsin-Diagnostic-DataSet/blob/master/Breast%20Cancer%20Wisconsin%20(Diagnostic)%20DataSet_Orignal_Data_In_Progress.ipynb as a guide
 
-# saving a string version of Diagnosis for future reference (when plotting)
+# # define functions
+# print('Defining functions...')
+def avg(a):
+    '''returns an average of counts stored in a series
+    '''
+    return(a/sum(a))
+# def counts__df(a):
+#      '''input a categorical variable and create a DataFrame of counts for each level of the categorical variable. 
+#      '''
+# def append_first_10_columns_to_tuple
+
+## creating string and binary diagnosis variables
+# saving string version of Diagnosis for future reference (when plotting)
 diagnosis_str = df.diagnosis
 # remapping M and B to 1 and 0 respectively
 diagnosis_coder = {'M':1, 'B':0}
 df.diagnosis = df.diagnosis.map(diagnosis_coder)
-diagnosis = df.diagnosis
+diagnosis_int = df.diagnosis
+# create separate dataframes for graphing later on
+df_b = df[df['diagnosis'] == 0]
+df_m = df[df['diagnosis'] == 1]
 
+# dropping unnecessary columns
+# ID is not necessary for analysis, diagnosis is removed for rearranging, Unnamed: 32 is an unknown column. 
 df.drop(['id', 'diagnosis', 'Unnamed: 32'], axis = 1, inplace = True)
-df['diagnosis'] = diagnosis
+df['diagnosis'] = diagnosis_int
+# peeking at data
+print('Peeking at data...')
 print(df.head())
+print(df.info())
 
 # _______________________________________________
-# Visualise data
+## Visualise data
 # _______________________________________________
+print('Visualising data...')
+print('Visualising the proportion of benign and malignant cases...')
 diagnosis_value_counts=df['diagnosis'].value_counts()
 t_diagnosis=pd.DataFrame(diagnosis_value_counts)
-t_diagnosis['percent']=100*diagnosis_value_counts/sum(diagnosis_value_counts)
+t_diagnosis['percent']=100*avg(diagnosis_value_counts)
 print(t_diagnosis)
 diagnosis_value_counts.plot(kind='bar')
-# plt.show()
-print('As shown, there are more benign than malignant cases')
+print('There are more benign than malignant cases in the Wisconsin dataset')
 
-# create list of df column names
-mean_features = list(df.columns[0:10])
+# Create list of df column names
+mean_features = []
+for column in df.columns[0:10]:
+     mean_features.append(column)
 
-df_10 = df.loc[:, mean_features]
+# Create dataframe where only mean features and diagnosis are included
+df_10 = df.loc[:,mean_features]
 df_10['diagnosis_str']=diagnosis_str
 
-print(df_10.head())
-
+# creating a pairplot of data
+print('Creating pairplot of data...')
 sb.pairplot(df_10, hue='diagnosis_str', palette='hls')
 plt.show()
+
+# Creating a matrix of boxplots for mean features
+print('Creating histograms showing distribution when separated by benign and malignant cases...')
+fig = plt.figure()
+for i,b in enumerate(list(df.columns[0:10])):
+    # enumerate starts at index 0, need to add 1 for subplotting
+    i +=1
+    # creating subplots
+    ax = fig.add_subplot(3,4,i)
+    ax.boxplot([df_b[b], df_m[b]])
+    ax.set_title(b)
+plt.tight_layout()
+plt.legend()
+plt.show()
+print('Plots show distinct patterns\n1. radius/area/perimeter/compactness/concavity/concave_points features have distinct Bemign and Malignant populations\n2. Smoothness/symmetry are very homogenous\nConcavity and concave_points seem to have the strongest positive relationship with other variables.')
 
 # _______________________________________________
 ## Logistic Regression
 # _______________________________________________
-# replace with for loop
-radius_mean = df["radius_mean"]
-texture_mean = df["texture_mean"]
-perimenter_mean = df["perimeter_mean"]
-area_mean = df["area_mean"]
-smoothness_mean = df["smoothness_mean"]
-compactness_mean = df["compactness_mean"]
-concavity_mean = df["concavity_mean"]
-concave_points_mean = df["concave points_mean"]
-symmetry_mean = df["symmetry_mean"]
-fractal_dimension_mean = df["fractal_dimension_mean"]
+print('Performing logistic regression analysis...')
+# creating a tuple dataframe for the first 10 columns of df (ie. the columns which show mean characteristics). 
+columns_1_to_10_list = []
+for column in range(10):
+    columns_1_to_10_list.append(df.iloc[:,column])
+columns_1_to_10_tuple = tuple(columns_1_to_10_list)
 
-y=diagnosis
-x=np.column_stack((radius_mean,texture_mean,perimenter_mean,area_mean,smoothness_mean,compactness_mean,concavity_mean,concave_points_mean,symmetry_mean,fractal_dimension_mean))
-x=sm.add_constant(x,prepend=True)
+# defining the x and y variables for logistic regression
+y = diagnosis_int
+x = np.column_stack(columns_1_to_10_tuple)
+x = sm.add_constant(x,prepend=True)
 
-x_train,x_test,y_train,y_test=train_test_split(x,y,random_state=0)
-logreg=LogisticRegression().fit(x_train,y_train)
+# creating training and test sets
+x_train,x_test,y_train,y_test = train_test_split(x,y,random_state=0)
+logreg = LogisticRegression().fit(x_train,y_train)
 logreg
 print("Training set score: {:.3f}".format(logreg.score(x_train,y_train)))
 print("Test set score: {:.3f}".format(logreg.score(x_test,y_test)))
 
+#logistic regression model
 logit_model=sm.Logit(y_train,x_train)
 result=logit_model.fit()
-print(result.summary())
+print('Regression analysis complete!')
+print(result.summary(),'\n')
 
-
-
-# # create boolean DataFrame of Ben and Mal
-# df_b = df[df['diagnosis'] == 0]
-# df_m = df[df['diagnosis'] == 1]
-
-
-
-
-
-## pairplot
-# df_12=df.iloc[:,1:12]
-# print(df_12.head())
-
-## pairplot separating tumour nucleus characteristics based on diagnosis. Malignant in red
-# plot is showing distinct patterns
-# radius/area/perimeter/compactness/concavity/concave_points features highly predictive
-# smoothness/symmetry are very homogenous
-# concavity and concave_points seem to have the strongest positive relationship with other variables. 
-# sb.pairplot(df_12, hue='diagnosis', palette='hls')
-# # sb.pairplot(df_12)
-# plt.show()
-
-
-# # create a base classifier used to evaluate a subset of attributes
-# model = LogisticRegression()
-# # create the RFE model and select 3 attributes
-# rfe = RFE(model, 3)
-# rfe = rfe.fit(df_12.data, df_12.target)
-# # summarize the selection of the attributes
-# print(rfe.support_)
-# print(rfe.ranking_)
+print('Conducted logistic regression because the output only has two possibilities. The model does not assume normal distrubution, which is ideal as the pair plot shows some skewed distributions.\nA random forest would also have worked but a logistic regression is faster and more interpretable. This is significant considering the size of the dataframe.') 
