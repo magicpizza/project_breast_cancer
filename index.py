@@ -26,7 +26,9 @@ from sklearn.preprocessing import scale
 from sklearn import datasets
 from sklearn.feature_selection import RFE
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import classification_report
+
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
 
@@ -44,16 +46,35 @@ df=pd.read_csv(address)
 # df.columns=column_names
 # used https://github.com/patrickmlong/Breast-Cancer-Wisconsin-Diagnostic-DataSet/blob/master/Breast%20Cancer%20Wisconsin%20(Diagnostic)%20DataSet_Orignal_Data_In_Progress.ipynb as a guide
 
-# # define functions
-# print('Defining functions...')
+# define functions
+print('Defining functions...')
 def avg(a):
     '''returns an average of counts stored in a series
     '''
     return(a/sum(a))
-# def counts__df(a):
-#      '''input a categorical variable and create a DataFrame of counts for each level of the categorical variable. 
-#      '''
-# def append_first_10_columns_to_tuple
+
+def count_categorical_to_df(a):
+     '''input a categorical variable and create a DataFrame of counts for each level of the categorical variable. 
+     '''
+     value_counts=a.value_counts()
+     return(pd.DataFrame(value_counts))
+
+def append_first_10_columns_to_tuple(a):
+     '''input a dataframe and create a 2D tuple with only columns 0-9
+     '''
+     columns_1_to_10_list = []
+     for column in range(10):
+          columns_1_to_10_list.append(a.iloc[:,column])
+     return(tuple(columns_1_to_10_list))
+
+def non_numeric_to_NA(col):
+     '''Check whether a column's values are numeric, and if not numeric, modify to NA. 
+     ''' 
+     for id in range(568):
+        if type(col[id]) == int or type(col[id]) == np.float64:
+            pass
+        else:
+            col[id]=np.float64(col[id])
 
 ## creating string and binary diagnosis variables
 # saving string version of Diagnosis for future reference (when plotting)
@@ -70,6 +91,9 @@ df_m = df[df['diagnosis'] == 1]
 # ID is not necessary for analysis, diagnosis is removed for rearranging, Unnamed: 32 is an unknown column. 
 df.drop(['id', 'diagnosis', 'Unnamed: 32'], axis = 1, inplace = True)
 df['diagnosis'] = diagnosis_int
+# checking if all values in df.texture_mean are numpy.float64, and converting to NA if false 
+non_numeric_to_NA(df.texture_mean)
+
 # peeking at data
 print('Peeking at data...')
 print(df.head())
@@ -80,6 +104,8 @@ print(df.info())
 # _______________________________________________
 print('Visualising data...')
 print('Visualising the proportion of benign and malignant cases...')
+# creating a dataframe table and bar chart comparing the amount of benign and malignant cases
+t_diagnosis = count_categorical_to_df(df['diagnosis'])
 diagnosis_value_counts=df['diagnosis'].value_counts()
 t_diagnosis=pd.DataFrame(diagnosis_value_counts)
 t_diagnosis['percent']=100*avg(diagnosis_value_counts)
@@ -121,27 +147,28 @@ print('Plots show distinct patterns\n1. radius/area/perimeter/compactness/concav
 # _______________________________________________
 print('Performing logistic regression analysis...')
 # creating a tuple dataframe for the first 10 columns of df (ie. the columns which show mean characteristics). 
-columns_1_to_10_list = []
-for column in range(10):
-    columns_1_to_10_list.append(df.iloc[:,column])
-columns_1_to_10_tuple = tuple(columns_1_to_10_list)
+columns_1_to_10_tuple = append_first_10_columns_to_tuple(df)
 
 # defining the x and y variables for logistic regression
 y = diagnosis_int
 x = np.column_stack(columns_1_to_10_tuple)
 x = sm.add_constant(x,prepend=True)
 
-# creating training and test sets
+# creating logistic regression
 x_train,x_test,y_train,y_test = train_test_split(x,y,random_state=0)
 logreg = LogisticRegression().fit(x_train,y_train)
 logreg
 print("Training set score: {:.3f}".format(logreg.score(x_train,y_train)))
 print("Test set score: {:.3f}".format(logreg.score(x_test,y_test)))
 
-#logistic regression model
-logit_model=sm.Logit(y_train,x_train)
-result=logit_model.fit()
-print('Regression analysis complete!')
-print(result.summary(),'\n')
+# create a confusion matrix
+y_predict = logreg.predict(x_test)
+print(classification_report(y_test,y_predict))
 
-print('Conducted logistic regression because the output only has two possibilities. The model does not assume normal distrubution, which is ideal as the pair plot shows some skewed distributions.\nA random forest would also have worked but a logistic regression is faster and more interpretable. This is significant considering the size of the dataframe.') 
+# cross validating
+scores = cross_val_score(logreg, x_train, y_train, cv=5)
+scores
+
+print("Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+
+print('\nConducted logistic regression because the output only has two possibilities. The model does not assume normal distrubution, which is ideal as the pair plot shows some skewed distributions.\nA random forest would also have worked but a logistic regression is faster and more interpretable. This is significant considering the size of the dataframe.\nAlso the accuracy is high whilst the sd of the accuracy is small') 
