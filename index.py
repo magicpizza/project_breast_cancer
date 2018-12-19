@@ -8,6 +8,8 @@
 # Importing libraries
 
 print('Creating a prognostic model from Wisconsin Breast Cancer Data\n~by Victor Wan\nDesc: Visualising Breast Cancer Wisconsin data and creating a predictive model based on nuclear features')
+# used to find breast_cancer_data.csv
+import os
 
 # numpy is used to manipulate arrays (used in this project for .column_stack())
 import numpy as np
@@ -40,7 +42,8 @@ sb.set_style('whitegrid')
 
 # Locate and read data
 print('Locating and reading data...')
-address='C:/Users/victo/Dropbox/Coding/Python/visual_studio_code/project_breast_cancer/breast_cancer_data.csv'
+address = os.path.realpath(
+    os.path.join(os.getcwd(), 'breast_cancer_data.csv'))
 df=pd.read_csv(address)
 # column_names=["id","diagnosis","radius_mean","texture_mean","perimeter_mean","area_mean","smoothness_mean","compactness_mean","concavity_mean","concave points_mean","symmetry_mean","fractal_dimension_mean","radius_se","texture_se","perimeter_se","area_se","smoothness_se","compactness_se","concavity_se","concave points_se","symmetry_se","fractal_dimension_se","radius_worst","texture_worst","perimeter_worst","area_worst","smoothness_worst","compactness_worst","concavity_worst","concave points_worst","symmetry_worst","fractal_dimension_worst"]
 # df.columns=column_names
